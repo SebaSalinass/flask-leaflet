@@ -1,0 +1,18 @@
+
+[project]
+name = "flask-leaflet"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Sebastian Salinas", email = "seba.salinas.delrio@gmail.com"},
+]
+dependencies = [
+    "flask>=2.3.2",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
