@@ -1,7 +1,7 @@
 
 [project]
 name = "flask-leaflet"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [
     {name = "Sebastian Salinas", email = "seba.salinas.delrio@gmail.com"},
