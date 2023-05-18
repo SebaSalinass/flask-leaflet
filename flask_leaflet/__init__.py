@@ -26,11 +26,11 @@ class Leaflet:
 
     def __register_blueprint(self, app: Flask) -> Blueprint:
         blueprint = Blueprint(
-            "leafletjs",
+            "leaflet",
             __name__,
             template_folder="templates",
             static_folder="static",
-            static_url_path="/leafletjs/static",
+            static_url_path="/leaflet/static",
         )
         app.register_blueprint(blueprint)
 

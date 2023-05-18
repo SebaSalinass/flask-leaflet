@@ -13,8 +13,8 @@
 {% endif %}
 <script nonce={{ csp_nonce() if csp_nonce else "" }} >
      var leaflet_default_icon = L.icon({
-          iconUrl: "{{ leafletjs.default_icon_marker_url or url_for('leafletjs.static', filename='images/marker-icon.png') }}",
-          shadowUrl: "{{ leafletjs.default_icon_marker_shadow_url or url_for('leafletjs.static', filename='images/marker-shadow.png') }}",
+          iconUrl: "{{ leaflet.default_icon_marker_url or url_for('leaflet.static', filename='images/marker-icon.png') }}",
+          shadowUrl: "{{ leaflet.default_icon_marker_shadow_url or url_for('leaflet.static', filename='images/marker-shadow.png') }}",
           iconAnchor: [12.5,41],
      }) 
 </script>
