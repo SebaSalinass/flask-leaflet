@@ -134,4 +134,4 @@ rectangle.new_popup('This is a rectangle popup')
 
 ```
 
-I will be adding more functionallity in the future to extend the capabilities and customization options.
+I will be adding more functionallity in the future to extend the capabilities and customization options. Help is always welcomed.
