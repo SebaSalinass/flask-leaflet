@@ -1,10 +1,9 @@
+import typing as t
 from ..basic_types import Icon, Point, LatLng
 from .base import Layer, InteractiveLayer
-
+from markupsafe import Markup
 
 class DivOverlay(InteractiveLayer):
-    __call_as_obj__ = ["offset"]
-    __binded_attr__ = "content"
 
     offset: Point = None
     class_name: str = ""
@@ -13,24 +12,14 @@ class DivOverlay(InteractiveLayer):
 
     def __init__(self, offset: Point = None, class_name: str = "", pane: str = None, content: str = "", **kwargs) -> None:
         super().__init__(pane=pane, **kwargs)
-        self.offset = offset or Point(0, 0)
+        self.offset = Point(*offset) if isinstance(offset, (tuple, list)) else offset
         self.class_name = class_name
         self.content = content
 
 
 class Popup(DivOverlay):
-    __not_options__ = DivOverlay.__not_options__ + ["latlng"]
-    __factory__ = "popup"
-    __bind_str__ = "openOn"
-    __call_args__ = ["latlng"]
-    __call_as_obj__ = DivOverlay.__call_as_obj__ + [
-        "latlng",
-        "auto_pan_padding_top_left",
-        "auto_pan_padding_bottom_right",
-        "auto_pan_padding",
-    ]
-
-    __binded_str__ = "bindPopup"
+    __render_args__ = ["latlng"]
+    __not_render_options__ = DivOverlay.__not_render_options__ + __render_args__
 
     latlng: LatLng
     pane: str = "popupPane"
@@ -41,7 +30,7 @@ class Popup(DivOverlay):
     auto_pan: bool = True
     auto_pan_padding_top_left: Point = None
     auto_pan_padding_bottom_right: Point = None
-    auto_pan_padding: Point = Point(5, 5)
+    auto_pan_padding: Point = [5,5]
     keep_in_view: bool = False
     close_button: bool = True
     auto_close: bool = True
@@ -50,7 +39,7 @@ class Popup(DivOverlay):
 
     def __init__(
         self,
-        latlng: LatLng | list[float, float],
+        latlng: LatLng | list[float, float] = None,
         content: str = "",
         pane: str = "popupPane",
         offset: Point | list[int] = [0, 7],
@@ -68,9 +57,8 @@ class Popup(DivOverlay):
         close_on_click: bool = None,
         **kwargs,
     ) -> None:
-        offset = Point(*offset) if isinstance(offset, (list, tuple)) else offset
         super().__init__(offset=offset, content=content, pane=pane, **kwargs)
-        self.latlng = latlng if isinstance(latlng, LatLng) else LatLng(*latlng)
+        self.latlng = LatLng(*latlng) if isinstance(latlng, (tuple, list)) else latlng
         self.max_width = max_width
         self.min_width = min_width
         self.max_height = max_height
@@ -92,16 +80,13 @@ class Popup(DivOverlay):
 
 
 class Tooltip(DivOverlay):
-    __not_options__ = ["id", "latlng", "map"]
-    __factory__ = "tooltip"
-    __bind_str__ = "openOn"
-    __call_args__ = ["latlng"]
-    __call_as_obj__ = ["latlng", "offset"]
-    __binded_str__ = "bindTooltip"
+
+    __render_args__ = ["latlng"]
+    __not_render_options__ = DivOverlay.__not_render_options__ + __render_args__
 
     latlng: LatLng
     pane: str = "tooltipPane"
-    offset: Point = Point(0, 0)
+    offset: Point = [0,0]
     direction: str = "auto"
     permanent: bool = False
     opacity: float = 0.9
@@ -125,12 +110,80 @@ class Tooltip(DivOverlay):
         self.opacity = opacity
 
 
-class Marker(Layer):
-    __not_options__ = Layer.__not_options__ + ["latlng"]
-    __factory__ = "marker"
-    __bind_str__ = "addTo"
-    __call_args__ = ["latlng"]
-    __call_as_obj__ = ["latlng"]
+class BindsUILayers:
+    latlng: LatLng | None
+    var_name: str
+    ui_layers: list[Tooltip, Popup]
+
+    def add_ui_layer(self, ui_layer: Tooltip | Popup) -> None:
+        self.ui_layers.append(ui_layer)
+
+    def new_tooltip(self, content: str = "",
+        pane: str = "tooltipPane",
+        offset: Point = [0, 0],
+        direction: str = "auto",
+        permanent: bool = False,
+        opacity: float = 0.9,
+        **kwargs) -> Tooltip:
+        tooltip = Tooltip(self.latlng, content, pane, offset, direction, permanent, opacity, **kwargs)
+        self.add_ui_layer(tooltip)
+        return tooltip
+
+    def new_popup(self, content: str = "",
+        pane: str = "popupPane",
+        offset: Point | list[int] = [0, 7],
+        max_width: int = 300,
+        min_width: int = 50,
+        max_height: int = None,
+        auto_pan: bool = True,
+        auto_pan_padding_top_left: Point | list[int] = None,
+        auto_pan_padding_bottom_right: Point | list[int] = None,
+        auto_pan_padding: Point | list[int] = [5, 5],
+        keep_in_view: bool = False,
+        close_button: bool = True,
+        auto_close: bool = True,
+        close_on_escape_key: bool = True,
+        close_on_click: bool = None,
+        **kwargs) -> Popup:
+
+        popup = Popup(self.latlng or None,
+                     content,
+                     pane,
+                     offset,
+                     max_width,
+                     min_width,
+                     max_height,
+                     auto_pan,
+                     auto_pan_padding_top_left,
+                     auto_pan_padding_bottom_right,
+                     auto_pan_padding,
+                     keep_in_view,
+                     close_button,
+                     auto_close,
+                     close_on_escape_key,
+                     close_on_click,
+                     **kwargs)
+        self.add_ui_layer(popup)
+        return popup
+
+
+    def render_ui_layers(self, as_variable: bool = False) -> str:
+        string = ""
+        if as_variable:
+            for ui_layer in self.ui_layers:
+                string = ui_layer.__render_html__(as_variable)
+                
+                string = Markup(f"{string}{self.var_name}.bind{ui_layer.__class__.__name__}({ui_layer.var_name});")
+        else:
+            for ui_layer in self.ui_layers:
+                string += f".bind{ui_layer.__class__.__name__}({ui_layer.__render_html__()})"
+        print(string)
+        return string
+
+
+class Marker(BindsUILayers, Layer):
+    __render_args__ = ["latlng"]
+    __not_render_options__ = Layer.__not_render_options__ + __render_args__ + ["ui_layers"]
 
     latlng: LatLng
     icon: Icon = None
@@ -161,6 +214,7 @@ class Marker(Layer):
         shadow_pane: str = "shadowPane",
         bubbling_mouse_events: bool = False,
         auto_pan_on_focus: bool = True,
+        ui_layers: list[Layer] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -177,20 +231,16 @@ class Marker(Layer):
         self.shadow_pane = shadow_pane
         self.bubbling_mouse_events = bubbling_mouse_events
         self.auto_pan_on_focus = auto_pan_on_focus
+        self.ui_layers = ui_layers or []
 
-    def bind_tooltip(self, content: str, **kwargs) -> Tooltip:
-        tooltip = Tooltip(self.latlng, content, **kwargs)
-        self.bind(tooltip)
-        return tooltip
-
-    def bind_popup(self, content: str, **kwargs) -> Popup:
-        popup = Popup(self.latlng, content, **kwargs)
-        self.bind(popup)
-        return popup
+    def __render_html__(self, as_variable: bool = False) -> Markup:
+        string = super().__render_html__(as_variable=as_variable)
+        string = string + self.render_ui_layers(as_variable=as_variable)
+        return string
 
 
-class HasUILayers:
-    _layers: list[Layer]
+class CreatesUILayers:
+    layers: list[Layer]
 
     def new_marker(
         self,
@@ -225,7 +275,8 @@ class HasUILayers:
             auto_pan_on_focus,
             **kwargs,
         )
-        self._layers.append(marker)
+        self.layers.append(marker)
+        marker.owner = self
         return marker
 
     def new_tooltip(
@@ -240,7 +291,8 @@ class HasUILayers:
         **kwargs,
     ) -> Tooltip:
         tooltip = Tooltip(latlng, content, pane, offset, direction, permanent, opacity, **kwargs)
-        self._layers.append(tooltip)
+        self.layers.append(tooltip)
+        tooltip.owner = self
         return tooltip
 
     def new_popup(
@@ -282,5 +334,6 @@ class HasUILayers:
             close_on_click,
             **kwargs,
         )
-        self._layers.append(popup)
+        self.layers.append(popup)
+        popup.owner = self
         return popup

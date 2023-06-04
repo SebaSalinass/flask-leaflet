@@ -1,11 +1,11 @@
-from typing import Optional, Callable, Any
+from typing import Optional, Callable
 
 from flask import Flask, Blueprint, Markup, render_template
 from .map import Map
 from .layers.raster import TileLayer
-from .layers.ui import Marker, Tooltip, Popup
+from .layers.ui import Marker
 
-__all__ = ("Leaflet", "Map", "Marker", "Tooltip", "Popup")
+__all__ = ("Leaflet", "Map", "Marker")
 
 
 class Leaflet:
@@ -14,8 +14,7 @@ class Leaflet:
     js_local_path: Optional[str] = None
 
     config: Optional[dict] = None
-    _nonce_callback: Optional[Callable[[], str]] = None
-    _default_tile_layer: TileLayer | None = None
+    default_tile_layer: TileLayer | None = None
 
     default_icon_marker_url: str = None
     default_icon_marker_shadow_url: str = None
@@ -48,8 +47,9 @@ class Leaflet:
         self.default_icon_marker_shadow_url = app.config.get(
             "LEAFLET_MARKER_ICON_SHADOW_URL"
         )
+
         if url_template := app.config.get("LEAFLET_DEFAULT_RASTER_TILE_URL_TEMPLATE"):
-            tile_options = app.config.get("LEAFLET_DEFAULT_RASTER_TILE_OPTIONS", dict())
+            tile_options = app.config.get("LEAFLET_DEFAULT_RASTER_TILE_OPTIONS")
             self.default_tile_layer = TileLayer(url_template, **tile_options)
 
         @app.context_processor
@@ -67,14 +67,15 @@ class Leaflet:
             )
         )
 
-    def render_map(
-        self, map: Map, options: dict[str, Any] = None, class_: str = ""
-    ) -> Markup:
-        options = options or {}
-        for key, val in options.items():
+    def render_map(self, map: Map, *, class_: str = "", **kwargs) -> Markup:
+        for key, val in kwargs.items():
             if hasattr(map, key):
                 setattr(map, key, val)
 
-        html_str = render_template("map.html", map=map, class_=class_)
+        if not map.has_any_raster_layer() and self.default_tile_layer is not None:
+            map.layers.append(self.default_tile_layer)
+            self.default_tile_layer.owner = map
 
-        return Markup(html_str)
+        html_string = map.__render_html__(class_)
+        js_string = Markup(f"<script>{str(map.__render_js__())}</script>")
+        return html_string + js_string

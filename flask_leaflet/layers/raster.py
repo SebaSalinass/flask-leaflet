@@ -5,9 +5,7 @@ RASTER_LAYERS = ("TileLayer", "WMSTileLayer", "ImageOverlay", "VideoOverlay")
 
 
 class GridLayer(Layer):
-    __factory__ = "gridLayer"
-    __bind_str__ = "addTo"
-
+    
     tile_size: int | Point = 256
     opacity: float = 1.0
     update_when_idle: bool = False
@@ -61,10 +59,8 @@ class GridLayer(Layer):
 
 
 class TileLayer(GridLayer):
-    __not_options__ = GridLayer.__not_options__ + ["url_template"]
-    __factory__ = "tileLayer"
-    __bind_str__ = "addTo"
-    __call_args__ = ["url_template"]
+    __render_args__ = ["url_template"]
+    __not_render_options__ = GridLayer.__not_render_options__ + __render_args__
 
     url_template: str
     min_zoom: int = 0
@@ -107,10 +103,8 @@ class TileLayer(GridLayer):
 
 
 class WMSTileLayer(TileLayer):
-    __not_options__ = TileLayer.__not_options__ + ["base_url"]
-    __factory__ = "tileLayer.wms"
-    __bind_str__ = "addTo"
-    __call_args__ = ["base_url"]
+    __render_args__ = ["base_url"]
+    __not_render_options__ = TileLayer.__not_render_options__ + __render_args__
 
     base_url: str
     layers: str = ""
@@ -139,14 +133,14 @@ class WMSTileLayer(TileLayer):
         self.transparent = transparent
         self.version = version
         self.uppercase = uppercase
+    
+    def __factory_str__(self) -> str:
+        return "tileLayer.wms"
 
 
 class ImageOverlay(InteractiveLayer):
-    __not_options__ = InteractiveLayer.__not_options__ + ["image_url", "image_bounds"]
-    __factory__ = "imageOverlay"
-    __bind_str__ = "addTo"
-    __call_args__ = ["image_url", "image_bounds"]
-    __call_as_obj__ = ["image_bounds"]
+    __render_args__ = ["image_url", "image_bounds"]
+    __not_render_options__ = InteractiveLayer.__not_render_options__ + __render_args__
 
     image_url: str
     image_bounds: LatLngBounds
@@ -185,11 +179,8 @@ class ImageOverlay(InteractiveLayer):
 
 
 class VideoOverlay(ImageOverlay):
-    __not_options__ = ImageOverlay.__not_options__ + ["video", "bounds"]
-    __factory__ = "videoOverlay"
-    __bind_str__ = "addTo"
-    __call_args__ = ["video", "bounds"]
-    __call_as_obj__ = ["bounds"]
+    __render_args__ = ["video", "bounds"]
+    __not_render_options__ = ImageOverlay.__not_render_options__ + __render_args__
 
     video: str | list[str]
     bounds: LatLngBounds
@@ -221,11 +212,11 @@ class VideoOverlay(ImageOverlay):
         self.plays_inline = plays_inline
 
 
-class HasRasterLayers:
-    _layers: list[Layer]
+class CreatesRasterLayers:
+    layers: list[Layer]
 
     def has_any_raster_layer(self) -> bool:
-        for layer in self._layers:
+        for layer in self.layers:
             if layer.__class__.__name__ in RASTER_LAYERS:
                 return True
         return False
@@ -259,7 +250,8 @@ class HasRasterLayers:
             referrer_policy,
             **kwargs,
         )
-        self._layers.append(tile_layer)
+        tile_layer.owner = self
+        self.layers.append(tile_layer)
         return tile_layer
 
     def new_wms_tile_layer(
@@ -274,7 +266,8 @@ class HasRasterLayers:
         **kwargs,
     ) -> WMSTileLayer:
         wms_tile_layer = WMSTileLayer(base_url, layers, styles, format, transparent, version, uppercase, **kwargs)
-        self._layers.append(wms_tile_layer)
+        wms_tile_layer.owner = self
+        self.layers.append(wms_tile_layer)
         return wms_tile_layer
 
     def new_image_overlay(
@@ -293,7 +286,8 @@ class HasRasterLayers:
         image_overlay = ImageOverlay(
             image_url, image_bounds, opacity, alt, interactive, cross_origin, error_overlay_url, z_index, class_name, **kwargs
         )
-        self._layers.append(image_overlay)
+        image_overlay.owner = self
+        self.layers.append(image_overlay)
         return image_overlay
 
     def new_video_overlay(
@@ -317,5 +311,6 @@ class HasRasterLayers:
             plays_inline,
             **kwargs,
         )
-        self._layers.append(video_overlay)
+        video_overlay.owner = self
+        self.layers.append(video_overlay)
         return video_overlay

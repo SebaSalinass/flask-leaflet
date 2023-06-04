@@ -1,10 +1,13 @@
 from .base import Layer
 from ..basic_types import LatLng
-from .ui import Tooltip, Popup
+from .ui import BindsUILayers
 import typing as t
+from markupsafe import Markup
 
 
-class Path(Layer):
+class Path(BindsUILayers, Layer):
+    __not_render_options__ = Layer.__not_render_options__ + ["ui_layers"]
+    
     stroke: bool = True
     color: str = "#3388ff"
     weight: int = 3
@@ -37,6 +40,7 @@ class Path(Layer):
         fill_rule: str = "evenodd",
         bubbling_mouse_events: bool = True,
         class_name: str = None,
+        ui_layers: list[Layer] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -54,24 +58,17 @@ class Path(Layer):
         self.fill_rule = fill_rule
         self.bubbling_mouse_events = bubbling_mouse_events
         self.class_name = class_name
+        self.ui_layers = ui_layers or []
 
-    def bind_tooltip(self, content: str, **kwargs) -> Tooltip:
-        tooltip = Tooltip(self.latlng, content, **kwargs)
-        self.bind(tooltip)
-        return tooltip
-
-    def bind_popup(self, content: str, **kwargs) -> Popup:
-        popup = Popup(self.latlng, content, **kwargs)
-        self.bind(popup)
-        return popup
+    def __render_html__(self, as_variable: bool = False) -> Markup:
+        string = super().__render_html__(as_variable=as_variable)
+        string = string + self.render_ui_layers(as_variable=as_variable)
+        return string
 
 
 class CircleMarker(Path):
-    __not_options__ = Path.__not_options__ + ["latlng"]
-    __factory__ = "circleMarker"
-    __bind_str__ = "addTo"
-    __call_args__ = ["latlng"]
-    __call_as_obj__ = ["latlng"]
+    __render_args__ = ["latlng"]
+    __not_render_options__ = Path.__not_render_options__ + __render_args__
 
     latlng: LatLng | list[float]
     radius: int = 10
@@ -83,11 +80,8 @@ class CircleMarker(Path):
 
 
 class Polyline(Path):
-    __not_options__ = Path.__not_options__ + ["latlngs"]
-    __factory__ = "polyline"
-    __bind_str__ = "addTo"
-    __call_args__ = ["latlngs"]
-    __call_as_obj__ = ["latlngs"]
+    __render_args__ = ["latlngs"]
+    __not_render_options__ = Path.__not_render_options__ + __render_args__
 
     latlngs: list[LatLng]
 
@@ -116,48 +110,49 @@ class Polyline(Path):
         return out_latlngs
 
 
-class Polygon(Polyline):
-    __factory__ = "polygon"
+class Polygon(Polyline):    
 
     def __init__(self, latlngs: list[LatLng] | list[list[float]], **kwargs) -> None:
         super().__init__(latlngs, **kwargs)
 
 
 class Rectangle(Polygon):
-    __factory__ = "rectangle"
 
     def __init__(self, latlngs: list[LatLng] | list[list[float]], **kwargs) -> None:
         super().__init__(latlngs, **kwargs)
 
 
 class Circle(CircleMarker):
-    __factory__ = "circle"
 
     def __init__(self, latlng: LatLng | list[float], radius: int = 10, **kwargs) -> None:
         super().__init__(latlng, radius, **kwargs)
 
 
-class HasPathsLayers:
-    _layers: list[Layer]
+class CreatesPathLayers:
+    layers: list[Layer]
 
     def new_polyline(
         self, latlngs: list[LatLng] | list[list[float]], smooth_fator: float = 1.0, no_clip: bool = False, **kwargs
     ) -> Polyline:
         polyline = Polyline(latlngs, smooth_fator, no_clip, **kwargs)
-        self._layers.append(polyline)
+        polyline.owner = self
+        self.layers.append(polyline)
         return polyline
 
     def new_polygon(self, latlngs: list[LatLng] | list[list[float]], **kwargs) -> Polygon:
         polygon = Polygon(latlngs, **kwargs)
-        self._layers.append(polygon)
+        polygon.owner = self
+        self.layers.append(polygon)
         return polygon
 
     def new_rectangle(self, latlngs: list[LatLng] | list[list[float]], **kwargs) -> Rectangle:
         rectangle = Rectangle(latlngs, **kwargs)
-        self._layers.append(rectangle)
+        rectangle.owner = self
+        self.layers.append(rectangle)
         return rectangle
 
     def new_circle(self, latlng: LatLng | list[float], radius: int = 10, **kwargs) -> Circle:
         circle = Circle(latlng, radius, **kwargs)
-        self._layers.append(circle)
+        circle.owner = self
+        self.layers.append(circle)
         return circle

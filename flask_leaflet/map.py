@@ -1,15 +1,22 @@
-from .mixins import BaseMixin
-from .layers.base import Layer, HasLayers
-from .layers.raster import HasRasterLayers
-from .layers.ui import HasUILayers
-from .layers.paths import HasPathsLayers
-
-from .basic_types import LatLng
 import typing as t
+from markupsafe import Markup
+
+from .mixins import RenderOptions, RendersVarName
+from .basic_types import LatLng, LatLngBounds
+from .layers.base import Layer
+from .layers.raster import CreatesRasterLayers
+from .layers.ui import CreatesUILayers
+from .layers.paths import CreatesPathLayers
 
 
-class Map(HasLayers, HasRasterLayers, HasUILayers, HasPathsLayers, BaseMixin):
-    __call_as_obj__ = ["center", "max_bounds"]
+class Map(
+    RenderOptions,
+    RendersVarName,
+    CreatesRasterLayers,
+    CreatesUILayers,
+    CreatesPathLayers,
+):
+    __not_render_options__ = ["id", "var_name", "layers"]
 
     id: str
     prefer_canvas: bool = True
@@ -65,7 +72,6 @@ class Map(HasLayers, HasRasterLayers, HasUILayers, HasPathsLayers, BaseMixin):
         zoom: int = 13,
         **kwargs,
     ) -> None:
-        super().__init__()
         self.id = id
         self.center = LatLng(*center) if isinstance(center, (list, tuple)) else center
         self.zoom = zoom
@@ -73,6 +79,14 @@ class Map(HasLayers, HasRasterLayers, HasUILayers, HasPathsLayers, BaseMixin):
         for key, val in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, val)
+
+        if not self.layers:
+            self.layers = []
+
+    def fit_bounds(self, bounds: LatLngBounds | list[list[int, float]]) -> None:
+        if isinstance(bounds, (tuple, list)):
+            bounds = LatLngBounds(LatLng(*bounds[0]), LatLng(*bounds[1]))
+        self._fit_bounds = bounds
 
     def lock_interaction(self) -> None:
         self.keyboard = False
@@ -91,3 +105,18 @@ class Map(HasLayers, HasRasterLayers, HasUILayers, HasPathsLayers, BaseMixin):
         self.zoom_control = True
         self.double_click_zoom = True
         self.tap_hold = True
+
+    def __render_js__(self) -> Markup:
+        string = Markup(
+            f"var {self.var_name} = L.map({self.id},{self.render_options()});"
+        )
+        for layer in self.layers:
+            string += layer.__render_html__(as_variable=True)
+        if self._fit_bounds:
+            string += Markup(
+                f"{self.var_name}.fitBounds({self._fit_bounds.__render_html__()});"
+            )
+        return string
+
+    def __render_html__(self, class_: str = "") -> Markup:
+        return Markup(f'<div id="{self.id}" class="{class_}" ></div>')

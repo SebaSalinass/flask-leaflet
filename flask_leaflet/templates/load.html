@@ -1,6 +1,5 @@
 {% if css_local_path %}
-<link rel="stylesheet" href="{{ url_for('static', filename=css_local_path) }}"
-     crossorigin=""/>
+<link rel="stylesheet" href="{{ url_for('static', filename=css_local_path) }}" crossorigin=""/>
 {% else %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@{{ css_version }}/dist/leaflet.css">
 {% endif %}
