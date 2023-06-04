@@ -77,7 +77,7 @@ def my_map():
 
 ### Rendering the map
 
-Now that we have a Map instance we can render it in a template. **IMPORTANT:** The map container **Must have a Height** given by a class added on the `class_` arguments.
+Now that we have a Map instance we can render it in a template. **IMPORTANT:** The map container **Must have a Height** given the special `class_` argument. Also you got access to `nonce_` in case you need to add a nonce token to the script tag.
 in the next example we use `tailwindcss` class for a 200px height
 
 ```html

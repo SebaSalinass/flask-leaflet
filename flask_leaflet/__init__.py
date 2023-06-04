@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Optional
 
 from flask import Flask, Blueprint, Markup, render_template
 from .map import Map
@@ -41,6 +41,7 @@ class Leaflet:
 
         self.__register_blueprint(self.app)
 
+        self.csp_nonce_callback = self.app.config.get("LEAFLET_NONCE_CALLBACK")
         self.css_local_path = self.app.config.get("LEAFLET_CSS_LOCAL_PATH")
         self.js_local_path = self.app.config.get("LEAFLET_JS_LOCAL_PATH")
         self.default_icon_marker_url = app.config.get("LEAFLET_MARKER_ICON_URL")
@@ -67,7 +68,9 @@ class Leaflet:
             )
         )
 
-    def render_map(self, map: Map, *, class_: str = "", **kwargs) -> Markup:
+    def render_map(
+        self, map: Map, *, class_: str = "", nonce_: str = None, **kwargs
+    ) -> Markup:
         for key, val in kwargs.items():
             if hasattr(map, key):
                 setattr(map, key, val)
@@ -77,5 +80,6 @@ class Leaflet:
             self.default_tile_layer.owner = map
 
         html_string = map.__render_html__(class_)
-        js_string = Markup(f"<script>{str(map.__render_js__())}</script>")
+        nonce_tag = f" nonce={nonce_}" if nonce_ else ""
+        js_string = Markup(f"<script{nonce_tag}>{str(map.__render_js__())}</script>")
         return html_string + js_string
