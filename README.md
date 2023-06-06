@@ -81,10 +81,10 @@ Now that we have a Map instance we can render it in a template. **IMPORTANT:** T
 in the next example we use `tailwindcss` class for a 200px height
 
 ```html
-<head>
+<body>
   <!-- You can add custom options at this instance that will overwrite any defaults coming from the view. Note that using class_='h-200px' we stablish a minimum height otherwise the map wouldnt be visible. -->
   {{ leaflet.render_map(my_map, class_='h-[200px]', zoom=10) }}
-</head>
+</body>
 ```
 
 ### What about RasterLayers
